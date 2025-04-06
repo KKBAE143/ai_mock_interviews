@@ -95,31 +95,56 @@ export async function getLatestInterviews(
 ): Promise<Interview[] | null> {
   const { userId, limit = 20 } = params;
 
-  const interviews = await db
-    .collection("interviews")
-    .orderBy("createdAt", "desc")
-    .where("finalized", "==", true)
-    .where("userId", "!=", userId)
-    .limit(limit)
-    .get();
+  try {
+    // IMPORTANT: This query requires a composite index in Firebase.
+    // Create the index by visiting the URL in the error message:
+    // It needs an index on [finalized ASC, createdAt DESC, userId ASC]
+    // You must create this index at: https://console.firebase.google.com/project/glykos-4a440/firestore/indexes
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+    // Temporary solution until index is created - return empty array to prevent errors
+    return [];
+
+    /* Commented until index is created:
+    const interviews = await db
+      .collection("interviews")
+      .where("finalized", "==", true)
+      .orderBy("createdAt", "desc")
+      .where("userId", "!=", userId)
+      .limit(limit)
+      .get();
+
+    return interviews.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Interview[];
+    */
+  } catch (error) {
+    console.error("Error fetching latest interviews:", error);
+    // Return empty array instead of null while index is building
+    return [];
+  }
 }
 
 export async function getInterviewsByUserId(
   userId: string
 ): Promise<Interview[] | null> {
-  const interviews = await db
-    .collection("interviews")
-    .where("userId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .get();
+  try {
+    // Note: This query requires a composite index in Firebase.
+    // Create the index using the URL in the error message if you see an index error
+    // It needs an index on [userId ASC, createdAt DESC]
+    const interviews = await db
+      .collection("interviews")
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .get();
 
-  return interviews.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  })) as Interview[];
+    return interviews.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Interview[];
+  } catch (error) {
+    console.error("Error fetching user interviews:", error);
+    // Return empty array instead of null while index is building
+    return [];
+  }
 }
